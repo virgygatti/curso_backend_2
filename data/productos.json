@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "title": "Laptop Pro",
+    "description": "Notebook 15",
+    "code": "LAP001",
+    "price": 1299,
+    "status": true,
+    "stock": 10,
+    "category": "Computación",
+    "thumbnails": []
+  }
+]

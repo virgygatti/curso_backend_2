@@ -1,0 +1,107 @@
+<h1>Productos en tiempo real</h1>
+<p>Lista enviada y actualizada por <strong>WebSocket</strong>. Crear y eliminar se hacen por <strong>HTTP</strong> (POST/DELETE); el servidor emite por Socket para que todos los clientes se actualicen.</p>
+
+<section class="form-section">
+  <h2>Crear producto</h2>
+  <form id="form-create-product" class="product-form">
+    <label>Title <input name="title" required></label>
+    <label>Description <input name="description" required></label>
+    <label>Code <input name="code" required></label>
+    <label>Price <input type="number" name="price" step="0.01" min="0" required></label>
+    <label>Stock <input type="number" name="stock" min="0" required></label>
+    <label>Category <input name="category" required></label>
+    <label><input type="checkbox" name="status" checked> Status (activo)</label>
+    <label>Thumbnails (URLs separadas por coma, opcional) <input name="thumbnails" placeholder="url1, url2"></label>
+    <button type="submit">Crear producto</button>
+  </form>
+  <p id="form-message" class="form-message"></p>
+</section>
+
+<div id="products-container">
+  <p class="empty" id="products-status">Conectando…</p>
+  <ul class="products" id="products-list"></ul>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const listEl = document.getElementById('products-list');
+  const statusEl = document.getElementById('products-status');
+  const formEl = document.getElementById('form-create-product');
+  const formMessage = document.getElementById('form-message');
+
+  const socket = io();
+
+  socket.on('connect', function () {
+    statusEl.textContent = 'Conectado. Esperando lista de productos…';
+  });
+
+  function renderProducts(products) {
+    statusEl.textContent = products.length
+      ? 'Lista recibida por WebSocket (' + products.length + ' productos):'
+      : 'Lista recibida por WebSocket (0 productos).';
+    listEl.innerHTML = '';
+    if (!products || !products.length) {
+      listEl.innerHTML = '<li class="empty">No hay productos.</li>';
+      return;
+    }
+    products.forEach(function (p) {
+      const li = document.createElement('li');
+      li.className = 'product';
+      li.innerHTML =
+        '<h3>' + (p.title || '') + '</h3>' +
+        '<p>' + (p.description || '') + '</p>' +
+        '<p class="price">$ ' + (p.price ?? '') + '</p>' +
+        '<p>Categoría: ' + (p.category || '') + ' | Stock: ' + (p.stock ?? '') + '</p>' +
+        '<button type="button" class="btn-delete" data-id="' + (p.id ?? '') + '">Eliminar</button>';
+      listEl.appendChild(li);
+    });
+    listEl.querySelectorAll('.btn-delete').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        if (!id) return;
+        fetch('/api/products/' + id, { method: 'DELETE' })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (e) { throw new Error(e.error || 'Error'); });
+          })
+          .catch(function (err) {
+            alert('Error al eliminar: ' + err.message);
+          });
+      });
+    });
+  }
+
+  socket.on('products', renderProducts);
+
+  formEl.addEventListener('submit', function (e) {
+    e.preventDefault();
+    formMessage.textContent = '';
+    var fd = new FormData(formEl);
+    var thumbnails = (fd.get('thumbnails') || '').trim();
+    var body = {
+      title: fd.get('title'),
+      description: fd.get('description'),
+      code: fd.get('code'),
+      price: parseFloat(fd.get('price')),
+      stock: parseInt(fd.get('stock'), 10),
+      category: fd.get('category'),
+      status: formEl.querySelector('[name="status"]').checked
+    };
+    if (thumbnails) body.thumbnails = thumbnails.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.error || e.missing ? (e.missing && e.missing.join(', ')) : 'Error'); });
+        return r.json();
+      })
+      .then(function () {
+        formMessage.textContent = 'Producto creado. La lista se actualizará por WebSocket.';
+        formEl.reset();
+      })
+      .catch(function (err) {
+        formMessage.textContent = 'Error: ' + err.message;
+      });
+  });
+</script>

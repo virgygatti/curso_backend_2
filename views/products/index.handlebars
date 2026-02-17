@@ -1,0 +1,78 @@
+<h1>Productos</h1>
+<p>Listado con paginación. Filtro por categoría o disponibilidad; orden por precio.</p>
+
+<form method="get" action="/products" class="filters" style="margin-bottom: 1rem;">
+  <input type="number" name="limit" value="{{limit}}" min="1" max="50" placeholder="Por página" style="width: 5rem;">
+  <input type="text" name="query" value="{{query}}" placeholder="Categoría o disponibilidad">
+  <select name="sort">
+    <option value="">Sin orden</option>
+    <option value="asc" {{#if sortAsc}}selected{{/if}}>Precio ascendente</option>
+    <option value="desc" {{#if sortDesc}}selected{{/if}}>Precio descendente</option>
+  </select>
+  <button type="submit">Filtrar</button>
+</form>
+
+{{#if payload.length}}
+  <ul class="products">
+    {{#each payload}}
+      <li class="product">
+        <h3>{{this.title}}</h3>
+        <p>{{this.description}}</p>
+        <p class="price">$ {{this.price}}</p>
+        <p>Categoría: {{this.category}} | Stock: {{this.stock}}</p>
+        <a href="/products/{{this.id}}" class="btn-link">Ver detalle</a>
+        <button type="button" class="btn-add-cart" data-pid="{{this.id}}" data-title="{{this.title}}">Agregar al carrito</button>
+      </li>
+    {{/each}}
+  </ul>
+
+  <nav class="pagination" style="margin-top: 1rem;">
+    {{#if hasPrevPage}}
+      <a href="{{prevLink}}">« Página anterior</a>
+    {{/if}}
+    <span style="margin: 0 1rem;">Página {{page}} de {{totalPages}}</span>
+    {{#if hasNextPage}}
+      <a href="{{nextLink}}">Página siguiente »</a>
+    {{/if}}
+  </nav>
+{{else}}
+  <p class="empty">No hay productos con ese filtro.</p>
+{{/if}}
+
+<div id="add-cart-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); align-items: center; justify-content: center;">
+  <div style="background: #fff; padding: 1.5rem; border-radius: 8px;">
+    <p>Agregar "<span id="modal-product-title"></span>" al carrito</p>
+    <label>ID del carrito <input type="text" id="modal-cart-id" placeholder="ej. 6789abc..."></label>
+    <button type="button" id="modal-confirm">Agregar</button>
+    <button type="button" id="modal-cancel">Cancelar</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var modal = document.getElementById('add-cart-modal');
+    var cartIdInput = document.getElementById('modal-cart-id');
+    var titleEl = document.getElementById('modal-product-title');
+    var pid = null;
+    try { var saved = localStorage.getItem('cartId'); if (saved) cartIdInput.placeholder = saved.slice(0, 12) + '...'; } catch (e) {}
+    document.querySelectorAll('.btn-add-cart').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        pid = btn.getAttribute('data-pid');
+        titleEl.textContent = btn.getAttribute('data-title');
+        try { cartIdInput.value = localStorage.getItem('cartId') || ''; } catch (e) { cartIdInput.value = ''; }
+        modal.style.display = 'flex';
+      });
+    });
+    document.getElementById('modal-cancel').addEventListener('click', function () { modal.style.display = 'none'; });
+    document.getElementById('modal-confirm').addEventListener('click', function () {
+      var cid = cartIdInput.value.trim();
+      if (!cid || !pid) return;
+      fetch('/api/carts/' + cid + '/product/' + pid, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(function (r) {
+          if (r.ok) alert('Agregado al carrito'); else return r.json().then(function (e) { throw new Error(e.error || 'Error'); });
+        })
+        .catch(function (e) { alert('Error: ' + e.message); })
+        .finally(function () { modal.style.display = 'none'; });
+    });
+  })();
+</script>

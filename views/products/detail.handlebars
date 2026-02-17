@@ -1,0 +1,37 @@
+<h1>{{product.title}}</h1>
+<div class="product-detail">
+  <p><strong>Descripción:</strong> {{product.description}}</p>
+  <p class="price"><strong>Precio:</strong> $ {{product.price}}</p>
+  <p><strong>Categoría:</strong> {{product.category}}</p>
+  <p><strong>Stock:</strong> {{product.stock}}</p>
+  <p><strong>Código:</strong> {{product.code}}</p>
+  <p><strong>Estado:</strong> {{#if product.status}}Disponible{{else}}No disponible{{/if}}</p>
+  {{#if product.thumbnails.length}}
+    <p><strong>Imágenes:</strong></p>
+    <ul>{{#each product.thumbnails}}<li><a href="{{this}}" target="_blank" rel="noopener">{{this}}</a></li>{{/each}}</ul>
+  {{/if}}
+</div>
+
+<div class="add-to-cart" style="margin-top: 1rem;">
+  <label>ID del carrito <input type="text" id="cart-id" placeholder="Crear carrito en el menú y se rellenará aquí"></label>
+  <button type="button" id="btn-add-cart">Agregar al carrito</button>
+</div>
+<p><a href="/products">« Volver al listado</a></p>
+
+<script>
+  (function () {
+    var btn = document.getElementById('btn-add-cart');
+    var cartInput = document.getElementById('cart-id');
+    try { var saved = localStorage.getItem('cartId'); if (saved) cartInput.value = saved; } catch (e) {}
+    var pid = '{{product.id}}';
+    btn.addEventListener('click', function () {
+      var cid = cartInput.value.trim();
+      if (!cid) { alert('Indica el ID del carrito'); return; }
+      fetch('/api/carts/' + cid + '/product/' + pid, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(function (r) {
+          if (r.ok) alert('Agregado al carrito'); else return r.json().then(function (e) { throw new Error(e.error || 'Error'); });
+        })
+        .catch(function (e) { alert('Error: ' + e.message); });
+    });
+  })();
+</script>

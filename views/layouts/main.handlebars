@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}} - E-commerce</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #f5f5f5; }
+    h1 { color: #333; }
+    .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .product { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .product h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+    .product p { margin: 0.25rem 0; font-size: 0.9rem; color: #666; }
+    .product .price { font-weight: bold; color: #2e7d32; }
+    .product .btn-delete { margin-top: 0.5rem; padding: 0.35rem 0.75rem; background: #c62828; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+    .product .btn-delete:hover { background: #b71c1c; }
+    .product .btn-link, .product .btn-add-cart { display: inline-block; margin-top: 0.5rem; margin-right: 0.5rem; padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: 4px; cursor: pointer; text-decoration: none; border: none; }
+    .product .btn-link { background: #e0e0e0; color: #333; }
+    .product .btn-add-cart { background: #2e7d32; color: #fff; }
+    .product .btn-add-cart:hover { background: #1b5e20; }
+    .filters input, .filters select { margin-right: 0.5rem; padding: 0.35rem; }
+    .pagination a { margin: 0 0.25rem; }
+    .cart-item-actions { margin-top: 0.75rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .cart-item-actions label { display: flex; align-items: center; gap: 0.35rem; }
+    .cart-item-actions .btn-update-qty { padding: 0.35rem 0.75rem; background: #1976d2; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+    .cart-item-actions .btn-update-qty:hover { background: #1565c0; }
+    .cart-item-actions .btn-remove-from-cart { padding: 0.35rem 0.75rem; background: #c62828; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+    .cart-item-actions .btn-remove-from-cart:hover { background: #b71c1c; }
+    .form-section { background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 1.5rem; max-width: 32rem; }
+    .product-form { display: grid; gap: 0.5rem; }
+    .product-form label { display: block; }
+    .product-form input[type="text"], .product-form input[type="number"] { width: 100%; padding: 0.4rem; margin-top: 0.2rem; }
+    .product-form button { margin-top: 0.5rem; padding: 0.5rem 1rem; background: #1976d2; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .product-form button:hover { background: #1565c0; }
+    .form-message { margin-top: 0.5rem; font-size: 0.9rem; color: #2e7d32; }
+    a { color: #1976d2; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .empty { color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+  <nav style="margin-bottom: 1rem;">
+    <a href="/">Inicio</a>
+    <span style="margin: 0 0.5rem;">|</span>
+    <a href="/products">Productos (paginado)</a>
+    <span style="margin: 0 0.5rem;">|</span>
+    <a href="/realtimeproducts">Tiempo real</a>
+    <span style="margin: 0 0.5rem;">|</span>
+    <button type="button" id="nav-new-cart" style="padding: 0.25rem 0.5rem; cursor: pointer;">Crear carrito</button>
+    <span id="nav-cart-info" style="margin-left: 0.5rem; font-size: 0.9rem; color: #666;"></span>
+  </nav>
+  {{{body}}}
+  <script>
+    (function () {
+      var CART_KEY = 'cartId';
+      function getCartId() { try { return localStorage.getItem(CART_KEY); } catch (e) { return null; } }
+      function setCartId(id) { try { if (id) localStorage.setItem(CART_KEY, id); else localStorage.removeItem(CART_KEY); } catch (e) {} }
+      function showCartInfo() {
+        var id = getCartId();
+        var el = document.getElementById('nav-cart-info');
+        if (!el) return;
+        if (id) el.innerHTML = 'Carrito activo: <a href="/carts/' + id + '">' + id.slice(0, 8) + '...</a>';
+        else el.textContent = '';
+      }
+      showCartInfo();
+      var btn = document.getElementById('nav-new-cart');
+      if (btn) btn.addEventListener('click', function () {
+        fetch('/api/carts', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var id = data.id || data._id;
+            if (id) { setCartId(id); showCartInfo(); window.location.href = '/carts/' + id; }
+            else alert('Error al crear carrito');
+          })
+          .catch(function () { alert('Error al crear carrito'); });
+      });
+    })();
+  </script>
+</body>
+</html>

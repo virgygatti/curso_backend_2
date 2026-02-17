@@ -1,0 +1,70 @@
+<h1>Carrito {{cart.id}}</h1>
+<p>Productos en este carrito. Podés cambiar la cantidad o quitar un producto.</p>
+
+{{#if cart.products.length}}
+  <ul class="products cart-products">
+    {{#each cart.products}}
+      <li class="product" data-pid="{{#if this.product}}{{this.product.id}}{{/if}}">
+        {{#if this.product}}
+          <h3>{{this.product.title}}</h3>
+          <p>{{this.product.description}}</p>
+          <p class="price">$ {{this.product.price}}</p>
+          <p>Categoría: {{this.product.category}}</p>
+          <div class="cart-item-actions">
+            <label>
+              Cantidad
+              <input type="number" min="1" value="{{this.quantity}}" class="cart-qty-input" data-pid="{{this.product.id}}" style="width: 4rem; padding: 0.25rem;">
+            </label>
+            <button type="button" class="btn-update-qty" data-pid="{{this.product.id}}">Actualizar</button>
+            <button type="button" class="btn-remove-from-cart" data-pid="{{this.product.id}}">Quitar del carrito</button>
+          </div>
+        {{else}}
+          <p>Producto no encontrado. Cantidad: {{this.quantity}}</p>
+        {{/if}}
+      </li>
+    {{/each}}
+  </ul>
+{{else}}
+  <p class="empty">El carrito está vacío.</p>
+{{/if}}
+
+<p><a href="/products">« Volver a productos</a></p>
+
+<script>
+  (function () {
+    var cid = '{{cart.id}}';
+    if (!cid) return;
+
+    document.querySelectorAll('.btn-update-qty').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pid = btn.getAttribute('data-pid');
+        var input = document.querySelector('.cart-qty-input[data-pid="' + pid + '"]');
+        var qty = input ? parseInt(input.value, 10) : 1;
+        if (isNaN(qty) || qty < 1) qty = 1;
+        fetch('/api/carts/' + cid + '/products/' + pid, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: qty })
+        })
+          .then(function (r) {
+            if (r.ok) window.location.reload();
+            else return r.json().then(function (e) { throw new Error(e.error || 'Error'); });
+          })
+          .catch(function (e) { alert('Error: ' + e.message); });
+      });
+    });
+
+    document.querySelectorAll('.btn-remove-from-cart').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pid = btn.getAttribute('data-pid');
+        if (!confirm('¿Quitar este producto del carrito?')) return;
+        fetch('/api/carts/' + cid + '/products/' + pid, { method: 'DELETE' })
+          .then(function (r) {
+            if (r.ok) window.location.reload();
+            else return r.json().then(function (e) { throw new Error(e.error || 'Error'); });
+          })
+          .catch(function (e) { alert('Error: ' + e.message); });
+      });
+    });
+  })();
+</script>

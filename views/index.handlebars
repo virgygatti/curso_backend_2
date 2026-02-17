@@ -1,0 +1,16 @@
+<h1>Productos</h1>
+<p>Vista index.handlebars — lista renderizada en el servidor (sin WebSocket).</p>
+{{#if products.length}}
+  <ul class="products">
+    {{#each products}}
+      <li class="product">
+        <h3>{{this.title}}</h3>
+        <p>{{this.description}}</p>
+        <p class="price">$ {{this.price}}</p>
+        <p>Categoría: {{this.category}} | Stock: {{this.stock}}</p>
+      </li>
+    {{/each}}
+  </ul>
+{{else}}
+  <p class="empty">No hay productos. Crea algunos desde la API <code>POST /api/products</code>.</p>
+{{/if}}
