@@ -1,11 +1,21 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
+const passport = require('passport');
 const expressHandlebars = require('express-handlebars');
 const path = require('path');
 const productsRouter = require('./routes/products.routes');
 const cartsRouter = require('./routes/carts.routes');
 const viewsRouter = require('./routes/views.routes');
+const sessionsRouter = require('./routes/sessions.routes');
+const usersRouter = require('./routes/users.routes');
+
+require('./config/passport.config');
 
 const app = express();
+
+// Cookie parser (para extractor de JWT en estrategia "current")
+app.use(cookieParser());
+app.use(passport.initialize());
 
 // Motor de plantillas Handlebars
 app.engine('handlebars', expressHandlebars.engine({
@@ -26,6 +36,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/', viewsRouter);
 
 // Rutas API
+app.use('/api/sessions', sessionsRouter);
+app.use('/api/users', usersRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/carts', cartsRouter);
 
