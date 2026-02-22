@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const cartsController = require('../controllers/carts.controller');
+const { requireAuth, requireUser, requireOwnCart } = require('../middlewares/authorization');
 
 // POST /api/carts/ - Crear nuevo carrito
 router.post('/', cartsController.create);
@@ -8,10 +9,13 @@ router.post('/', cartsController.create);
 // GET /api/carts/:cid - Listar productos del carrito (con populate)
 router.get('/:cid', cartsController.getById);
 
-// POST /api/carts/:cid/product/:pid - Agregar producto al carrito
-router.post('/:cid/product/:pid', cartsController.addProduct);
+// Finalizar compra
+router.post('/:cid/purchase', requireAuth, requireOwnCart, cartsController.purchase);
 
-// DELETE /api/carts/:cid/products/:pid - Eliminar un producto del carrito
+// Solo usuario puede agregar a su carrito; el carrito debe ser el propio
+router.post('/:cid/product/:pid', requireAuth, requireUser, requireOwnCart, cartsController.addProduct);
+
+// DELETE /api/carts/:cid/products/:pid - Eliminar un producto del carrito (orden: rutas más específicas primero)
 router.delete('/:cid/products/:pid', cartsController.removeProduct);
 
 // PUT /api/carts/:cid/products/:pid - Actualizar cantidad del producto. Body: { quantity: number }

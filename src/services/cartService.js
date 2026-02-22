@@ -1,136 +1,74 @@
-const Cart = require('../models/Cart');
-const Product = require('../models/Product');
-const mongoose = require('mongoose');
+const cartRepository = require('../repositories/cartRepository');
+const productRepository = require('../repositories/productRepository');
+const ticketRepository = require('../repositories/ticketRepository');
 
-/**
- * Obtiene todos los carritos
- */
 async function getAll() {
-  const carts = await Cart.find().lean();
-  return carts.map((c) => ({ ...c, id: c._id.toString() }));
+  return cartRepository.getAll();
 }
 
-/**
- * Obtiene un carrito por ID con productos poblados (populate)
- */
 async function getById(cid) {
-  const cart = await Cart.findById(cid).populate('products.product').lean();
-  if (!cart) return null;
-  const id = cart._id.toString();
-  const products = (cart.products || []).map((item) => ({
-    product: item.product ? { ...item.product, id: item.product._id.toString() } : null,
-    quantity: item.quantity
-  }));
-  return { ...cart, id, products };
+  return cartRepository.getById(cid);
 }
 
-/**
- * Crea un nuevo carrito
- */
 async function create() {
-  const cart = await Cart.create({ products: [] });
-  return cart.toJSON();
+  return cartRepository.create();
 }
 
-/**
- * Agrega un producto al carrito. Si ya existe, incrementa quantity.
- */
 async function addProduct(cid, pid) {
-  const cart = await Cart.findById(cid);
-  if (!cart) return { cart: null, error: 'Carrito no encontrado' };
-
-  const product = await Product.findById(pid);
-  if (!product) return { cart: null, error: 'Producto no encontrado' };
-
-  const item = cart.products.find((p) => p.product.toString() === pid.toString());
-  if (item) {
-    item.quantity += 1;
-  } else {
-    cart.products.push({ product: new mongoose.Types.ObjectId(pid), quantity: 1 });
-  }
-  await cart.save();
-  const updated = await Cart.findById(cid).populate('products.product').lean();
-  const id = updated._id.toString();
-  const products = (updated.products || []).map((item) => ({
-    product: item.product ? { ...item.product, id: item.product._id.toString() } : null,
-    quantity: item.quantity
-  }));
-  return { cart: { ...updated, id, products }, error: null };
+  return cartRepository.addProduct(cid, pid, 1);
 }
 
-/**
- * Formatea carrito con populate para respuesta
- */
-async function _formatCart(cartDoc) {
-  const updated = await Cart.findById(cartDoc._id).populate('products.product').lean();
-  const id = updated._id.toString();
-  const products = (updated.products || []).map((item) => ({
-    product: item.product ? { ...item.product, id: item.product._id.toString() } : null,
-    quantity: item.quantity
-  }));
-  return { ...updated, id, products };
-}
-
-/**
- * Elimina un producto del carrito
- */
 async function removeProduct(cid, pid) {
-  const cart = await Cart.findById(cid);
-  if (!cart) return { cart: null, error: 'Carrito no encontrado' };
-  const initialLen = cart.products.length;
-  cart.products = cart.products.filter((p) => p.product.toString() !== pid.toString());
-  if (cart.products.length === initialLen) return { cart: null, error: 'Producto no está en el carrito' };
-  await cart.save();
-  return { cart: await _formatCart(cart), error: null };
+  return cartRepository.removeProduct(cid, pid);
 }
 
-/**
- * Actualiza el carrito completo. products: [{ product: productId, quantity: number }, ...]
- */
 async function updateCart(cid, productsArray) {
-  const cart = await Cart.findById(cid);
-  if (!cart) return { cart: null, error: 'Carrito no encontrado' };
-  if (!Array.isArray(productsArray)) return { cart: null, error: 'products debe ser un array' };
-  const items = [];
-  for (const item of productsArray) {
-    const productId = item.product || item.productId;
-    const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
-    if (!productId) continue;
-    const exists = await Product.findById(productId);
-    if (exists) items.push({ product: new mongoose.Types.ObjectId(productId), quantity: qty });
-  }
-  cart.products = items;
-  await cart.save();
-  return { cart: await _formatCart(cart), error: null };
+  return cartRepository.updateCart(cid, productsArray);
 }
 
-/**
- * Actualiza solo la cantidad de un producto en el carrito. quantity en req.body
- */
 async function updateProductQuantity(cid, pid, quantity) {
-  const cart = await Cart.findById(cid);
-  if (!cart) return { cart: null, error: 'Carrito no encontrado' };
-  const qty = Math.max(0, parseInt(quantity, 10));
-  const item = cart.products.find((p) => p.product.toString() === pid.toString());
-  if (!item) return { cart: null, error: 'Producto no está en el carrito' };
-  if (qty === 0) {
-    cart.products = cart.products.filter((p) => p.product.toString() !== pid.toString());
-  } else {
-    item.quantity = qty;
-  }
-  await cart.save();
-  return { cart: await _formatCart(cart), error: null };
+  return cartRepository.updateProductQuantity(cid, pid, quantity);
+}
+
+async function clearCart(cid) {
+  return cartRepository.clearCart(cid);
 }
 
 /**
- * Elimina todos los productos del carrito
+ * Finaliza la compra: verifica stock, descuenta, genera ticket y deja en el carrito solo los no procesados.
  */
-async function clearCart(cid) {
-  const cart = await Cart.findById(cid);
-  if (!cart) return { cart: null, error: 'Carrito no encontrado' };
-  cart.products = [];
-  await cart.save();
-  return { cart: await _formatCart(cart), error: null };
+async function purchase(cid, purchaserEmail) {
+  const cart = await cartRepository.getById(cid);
+  if (!cart) return { error: 'Carrito no encontrado' };
+
+  let totalAmount = 0;
+  const unprocessedIds = [];
+  const unprocessedItems = [];
+
+  for (const item of cart.products || []) {
+    const productId = item.product?.id || item.product?._id?.toString() || item.product;
+    if (!productId) continue;
+    const product = await productRepository.getById(productId);
+    if (!product) continue;
+    const qty = item.quantity || 1;
+    if (product.stock >= qty) {
+      await productRepository.decrementStock(productId, qty);
+      totalAmount += product.price * qty;
+    } else {
+      unprocessedIds.push(productId);
+      unprocessedItems.push({ product: productId, quantity: qty });
+    }
+  }
+
+  let ticket = null;
+  if (totalAmount > 0) {
+    ticket = await ticketRepository.create({ amount: totalAmount, purchaser: purchaserEmail });
+  }
+
+  const updatedCart = await cartRepository.setProducts(cid, unprocessedItems);
+  const cartFormatted = updatedCart || { ...cart, products: unprocessedItems };
+
+  return { ticket, unprocessedIds, cart: cartFormatted };
 }
 
 module.exports = {
@@ -141,5 +79,6 @@ module.exports = {
   removeProduct,
   updateCart,
   updateProductQuantity,
-  clearCart
+  clearCart,
+  purchase
 };

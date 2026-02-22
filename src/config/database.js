@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/backend1';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/backend2';
 
 /**
  * Conecta a MongoDB. Si no está instalado o no está en ejecución, el servidor
