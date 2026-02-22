@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const userService = require('../services/userService');
+const userDto = require('../dtos/userDto');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-dev';
 const JWT_EXPIRES = process.env.JWT_EXPIRES || '24h';
@@ -56,12 +57,11 @@ async function login(req, res, next) {
 
 /**
  * GET /api/sessions/current
- * Valida al usuario logueado (cookie con JWT) y devuelve sus datos asociados al JWT.
- * Protegido por estrategia Passport "current". Si no hay token o es inválido → 401.
+ * Valida al usuario logueado (cookie con JWT) y devuelve un DTO sin datos sensibles.
  */
 async function current(req, res, next) {
   try {
-    res.status(200).json(req.user);
+    res.status(200).json(userDto.toPublicUser(req.user));
   } catch (err) {
     next(err);
   }

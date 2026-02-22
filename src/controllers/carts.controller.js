@@ -113,6 +113,27 @@ async function clearCart(req, res, next) {
   }
 }
 
+/**
+ * POST /api/carts/:cid/purchase - Finaliza la compra. Usuario logueado y carrito propio.
+ * Verifica stock, descuenta, genera ticket y deja en el carrito solo los no procesados.
+ */
+async function purchase(req, res, next) {
+  try {
+    const { cid } = req.params;
+    const result = await cartService.purchase(cid, req.user.email);
+    if (result.error) {
+      return res.status(404).json({ error: result.error });
+    }
+    res.status(200).json({
+      ticket: result.ticket,
+      unprocessedIds: result.unprocessedIds,
+      cart: result.cart
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   create,
   getById,
@@ -120,5 +141,6 @@ module.exports = {
   removeProduct,
   updateCart,
   updateProductQuantity,
-  clearCart
+  clearCart,
+  purchase
 };
